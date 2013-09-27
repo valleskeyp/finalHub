@@ -1,0 +1,41 @@
+package com.valleskeyp.WebDefender;
+
+import com.badlogic.gdx.Gdx;
+import com.badlogic.gdx.graphics.Texture;
+import com.badlogic.gdx.graphics.Texture.TextureFilter;
+import com.badlogic.gdx.graphics.g2d.Sprite;
+import com.badlogic.gdx.graphics.g2d.SpriteBatch;
+import com.badlogic.gdx.graphics.g2d.TextureRegion;
+
+public class Fly {
+	
+	private Sprite fly_sprite;
+	private Texture texture;
+
+	public Fly() { // set static data of fly(x, y, ect)
+		texture = new Texture(Gdx.files.internal("data/web.png"));
+		texture.setFilter(TextureFilter.Linear, TextureFilter.Linear);
+		
+		TextureRegion region = new TextureRegion(texture, 0, 0, 800, 480);
+		
+		fly_sprite = new Sprite(region);
+		fly_sprite.setSize(1f, 1f * fly_sprite.getHeight() / fly_sprite.getWidth());
+		fly_sprite.setOrigin(fly_sprite.getWidth()/2, fly_sprite.getHeight()/2);
+		fly_sprite.setPosition(-fly_sprite.getWidth()/2, -fly_sprite.getHeight()/2);
+	}
+	
+	public void update() {
+		
+	}
+	
+	public void draw(SpriteBatch batch, float dt) {
+		
+	}
+	
+	// follow with actions or things affecting the fly
+	// ex. return the Fly for checks, animate actions
+	
+	public Sprite spriteReturn() {
+		return fly_sprite;
+	}
+}

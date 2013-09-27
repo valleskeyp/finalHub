@@ -1,0 +1,210 @@
+package com.valleskeyp.WebDefender.screens;
+
+import com.badlogic.gdx.Game;
+import com.badlogic.gdx.Gdx;
+import com.badlogic.gdx.InputProcessor;
+import com.badlogic.gdx.Screen;
+import com.badlogic.gdx.graphics.GL10;
+import com.badlogic.gdx.graphics.OrthographicCamera;
+import com.badlogic.gdx.graphics.Texture;
+import com.badlogic.gdx.graphics.Texture.TextureFilter;
+import com.badlogic.gdx.graphics.g2d.Sprite;
+import com.badlogic.gdx.graphics.g2d.SpriteBatch;
+import com.badlogic.gdx.graphics.g2d.TextureRegion;
+import com.badlogic.gdx.math.Vector2;
+import com.badlogic.gdx.math.collision.Ray;
+
+public class MenuScreen implements Screen, InputProcessor {
+	private OrthographicCamera camera;
+	private SpriteBatch batch;
+	private Texture texture;
+	private Sprite start_button, leaf_back, login, logout, highScore, achievements;
+	private boolean loggedIn = false;
+	
+	@Override
+	public void show() {
+		float w = Gdx.graphics.getWidth();
+		float h = Gdx.graphics.getHeight();
+		
+		camera = new OrthographicCamera(1, h/w);
+		batch = new SpriteBatch();
+		Gdx.input.setInputProcessor(this);
+		Gdx.input.setCatchBackKey(true);
+		
+		//     ----  Don't forget to add start_button to draw batch when done  ***AND ALSO DISPOSE***
+		texture = new Texture(Gdx.files.internal("data/start_button.png"));
+		texture.setFilter(TextureFilter.Linear, TextureFilter.Linear);
+		
+		TextureRegion region = new TextureRegion(texture, 0, 0, 128, 64);
+		
+		start_button = new Sprite(region);
+		start_button.setSize(0.128f, 0.064f);
+		start_button.setOrigin(start_button.getWidth()/2, start_button.getHeight()/2);
+		start_button.setPosition(-start_button.getWidth()/2, -start_button.getHeight()/2);
+		
+		texture = new Texture(Gdx.files.internal("data/background.png"));
+		texture.setFilter(TextureFilter.Linear, TextureFilter.Linear);
+		
+		region = new TextureRegion(texture, 0, 0, 800, 480);
+		
+		leaf_back = new Sprite(region);
+		leaf_back.setSize(1f, 1f * leaf_back.getHeight() / leaf_back.getWidth());
+		leaf_back.setOrigin(leaf_back.getWidth()/2, leaf_back.getHeight()/2);
+		leaf_back.setPosition(-leaf_back.getWidth()/2, -leaf_back.getHeight()/2);
+		
+		
+		// Google play buttons
+		
+		
+		texture = new Texture(Gdx.files.internal("data/login.png"));
+		texture.setFilter(TextureFilter.Linear, TextureFilter.Linear);
+		
+		region = new TextureRegion(texture, 0, 0, 138, 47);
+		
+		login = new Sprite(region);
+		login.setSize(.2f, .07f);
+		login.setOrigin(login.getWidth()/2, login.getHeight()/2);
+		login.setPosition(-.45f, -.235f);
+		
+		texture = new Texture(Gdx.files.internal("data/logout.png"));
+		texture.setFilter(TextureFilter.Linear, TextureFilter.Linear);
+		
+		region = new TextureRegion(texture, 0, 0, 138, 47);
+		
+		logout = new Sprite(region);
+		logout.setSize(.2f, .07f);
+		logout.setOrigin(logout.getWidth()/2, logout.getHeight()/2);
+		logout.setPosition(-.45f, -.235f);
+		
+		texture = new Texture(Gdx.files.internal("data/achievements.png"));
+		texture.setFilter(TextureFilter.Linear, TextureFilter.Linear);
+		
+		region = new TextureRegion(texture, 0, 0, 138, 47);
+		
+		achievements = new Sprite(region);
+		achievements.setSize(.2f, .07f);
+		achievements.setOrigin(achievements.getWidth()/2, achievements.getHeight()/2);
+		achievements.setPosition(-.45f, -.135f);
+		
+		texture = new Texture(Gdx.files.internal("data/highScore.png"));
+		texture.setFilter(TextureFilter.Linear, TextureFilter.Linear);
+		
+		region = new TextureRegion(texture, 0, 0, 138, 47);
+		
+		highScore = new Sprite(region);
+		highScore.setSize(.2f, .07f);
+		highScore.setOrigin(highScore.getWidth()/2, highScore.getHeight()/2);
+		highScore.setPosition(-.23f, -.235f);
+	}
+	
+	@Override
+	public void render(float delta) {
+		Gdx.gl.glClearColor(1, 1, 1, 1);
+		Gdx.gl.glClear(GL10.GL_COLOR_BUFFER_BIT);
+		
+		batch.setProjectionMatrix(camera.combined);
+		batch.begin();
+		leaf_back.draw(batch);
+		start_button.draw(batch);
+		if (!loggedIn) {
+			login.draw(batch);
+		} else {
+			logout.draw(batch);
+			highScore.draw(batch);
+			achievements.draw(batch);
+		}
+		
+		batch.end();
+	}
+
+	@Override
+	public void pause() {
+		// TODO Auto-generated method stub
+		
+	}
+
+	@Override
+	public void resume() {
+		// TODO Auto-generated method stub
+		
+	}
+
+	@Override
+	public void dispose() {
+		batch.dispose();
+		texture.dispose();
+	}
+
+	@Override
+	public boolean touchUp(int screenX, int screenY, int pointer, int button) {
+		Vector2 touchPos = new Vector2();
+        touchPos.set(Gdx.input.getX(), Gdx.input.getY());
+
+        Ray cameraRay = camera.getPickRay(touchPos.x, touchPos.y);
+        if (start_button.getBoundingRectangle().contains(cameraRay.origin.x, cameraRay.origin.y)) {
+        	((Game) Gdx.app.getApplicationListener()).setScreen(new GameScreen());
+		}
+        
+        if (login.getBoundingRectangle().contains(cameraRay.origin.x, cameraRay.origin.y) && loggedIn == false) {
+			//platformInterface.Login();
+			loggedIn = true;
+		} else if (logout.getBoundingRectangle().contains(cameraRay.origin.x, cameraRay.origin.y) && loggedIn == true) {
+			//platformInterface.LogOut();
+			loggedIn = false;
+		}
+        
+        if (loggedIn) {
+			if (highScore.getBoundingRectangle().contains(cameraRay.origin.x, cameraRay.origin.y)) {
+				
+			}
+		}
+		return false;
+	}
+	
+	@Override
+	public boolean keyDown(int keycode) {
+		return false;
+	}
+
+	@Override
+	public boolean keyUp(int keycode) {
+		return false;
+	}
+
+	@Override
+	public boolean keyTyped(char character) {
+		return false;
+	}
+
+	@Override
+	public void resize(int width, int height) {
+	}
+
+	@Override
+	public void hide() {
+	}
+	
+	@Override
+	public boolean touchDown(int screenX, int screenY, int pointer, int button) {
+		return false;
+	}
+	
+	@Override
+	public boolean touchDragged(int screenX, int screenY, int pointer) {
+		// TODO Auto-generated method stub
+		return false;
+	}
+
+	@Override
+	public boolean mouseMoved(int screenX, int screenY) {
+		// TODO Auto-generated method stub
+		return false;
+	}
+
+	@Override
+	public boolean scrolled(int amount) {
+		// TODO Auto-generated method stub
+		return false;
+	}
+
+}
