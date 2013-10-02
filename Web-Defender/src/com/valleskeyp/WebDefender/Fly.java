@@ -15,7 +15,7 @@ public class Fly {
 	public float xCoord, yCoord;
 	public int fly_size;
 	
-	public Fly(float x, float y, int fly_type) { // set static data of fly(x, y, ect)
+	public Fly(float x, float y, int fly_type, int slot_number) { // set static data of fly(x, y, ect)
 		xCoord = x;
 		yCoord = y;
 		fly_size = fly_type;
@@ -25,13 +25,13 @@ public class Fly {
 			
 			break;
 		case 2: // medium fly
-			texture = new Texture(Gdx.files.internal("data/med_fly.png"));
+			texture = new Texture(Gdx.files.internal("data/medium_fly.png"));
 			texture.setFilter(TextureFilter.Linear, TextureFilter.Linear);
 			
-			TextureRegion region = new TextureRegion(texture, 0, 0, 64, 64);
+			TextureRegion region = new TextureRegion(texture, 0, 0, 212, 143);
 			
 			fly_sprite = new Sprite(region);
-			fly_sprite.setSize(.08f, .08f);
+			fly_sprite.setSize(.125f, .105f);
 			fly_sprite.setOrigin(fly_sprite.getWidth()/2, fly_sprite.getHeight()/2);
 			fly_sprite.setPosition(x, y);
 			break;

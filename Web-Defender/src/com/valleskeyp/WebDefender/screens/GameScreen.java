@@ -19,6 +19,7 @@ import com.badlogic.gdx.math.Vector2;
 import com.badlogic.gdx.math.collision.Ray;
 import com.badlogic.gdx.utils.Array;
 import com.valleskeyp.WebDefender.Fly;
+import com.valleskeyp.WebDefender.Web;
 
 public class GameScreen implements Screen, InputProcessor {
 	private OrthographicCamera camera;
@@ -28,6 +29,7 @@ public class GameScreen implements Screen, InputProcessor {
 	private boolean move_spider;
 	public Array<HashMap<String, Float>> coord = new Array<HashMap<String, Float>>();
 	public Array<Fly> flies;
+	public Array<Web> webbing;
 	
 	float bug_timer = 0;
 	
@@ -42,7 +44,7 @@ public class GameScreen implements Screen, InputProcessor {
 		Gdx.input.setCatchBackKey(true);
 		
 		//     ----  Don't forget to add spider to draw batch when done  ***AND ALSO DISPOSE***
-		texture = new Texture(Gdx.files.internal("data/web.png"));
+		texture = new Texture(Gdx.files.internal("data/middle_web.png"));
 		texture.setFilter(TextureFilter.Linear, TextureFilter.Linear);
 		
 		TextureRegion region = new TextureRegion(texture, 0, 0, 800, 480);
@@ -72,15 +74,11 @@ public class GameScreen implements Screen, InputProcessor {
 		spider.setOrigin(spider.getWidth()/2, spider.getHeight()/2);
 		spider.setPosition(-spider.getWidth()/2, -spider.getHeight()/2);
 		
-		// TODO testing purposes.  seperate to own method later
 		flies = new Array<Fly>();
-		
-		Fly fly = new Fly(-.23f, -.1f, 2);
-		flies.add(fly);
-		
-		fly = new Fly(.2f, -.14f, 2);
-		flies.add(fly);
+		makeWeb();
+		spawnFly();
 	}
+
 	
 	@Override
 	public void render(float delta) {
@@ -92,15 +90,20 @@ public class GameScreen implements Screen, InputProcessor {
 		batch.begin();
 		leaf_back.draw(batch);
 		sprite.draw(batch);
-		spider.draw(batch);
-		for (Fly fly : flies) {
-			fly.draw(batch, dt);
+		for (Web web : webbing) {// draw web squares
+			web.draw(batch, dt);
 		}
-		
-		for (Fly fly : flies) {
-			Sprite sp = fly.spriteReturn();
-			if (Intersector.overlaps(spider.getBoundingRectangle(), sp.getBoundingRectangle())) {
-				flies.removeValue(fly, true);
+		spider.draw(batch);
+		if (flies.size > 0) {
+			for (Fly fly : flies) {// draw flies
+				fly.draw(batch, dt);
+			}
+			for (Fly fly : flies) {
+				Sprite sp = fly.spriteReturn();
+				if (Intersector.overlaps(spider.getBoundingRectangle(),
+						sp.getBoundingRectangle())) {
+					flies.removeValue(fly, true);
+				}
 			}
 		}
 		batch.end();
@@ -118,6 +121,9 @@ public class GameScreen implements Screen, InputProcessor {
 		texture.dispose();
 		for (Fly fly : flies) {
 			fly.texture.dispose();
+		}
+		for (Web web : webbing) {
+			web.texture.dispose();
 		}
 		
 	}
@@ -162,7 +168,47 @@ public class GameScreen implements Screen, InputProcessor {
 		}
 		return false;
 	}
-
+	
+	private void spawnFly() {
+		
+		int rand = (int) (Math.random() * 3) + 1;
+		
+		
+		Fly fly = new Fly(-.455f, .143f, 2, 0);
+		flies.add(fly);
+		
+		fly = new Fly(-.455f, -.243f, 2, 5);
+		flies.add(fly);
+		
+		fly = new Fly(-.255f, -.243f, 2, 6);
+		flies.add(fly);
+	}
+	
+	private void makeWeb() {
+		webbing = new Array<Web>();
+		
+		Web web = new Web(-.5f, .1f, "top", 0);
+		webbing.add(web);
+		web = new Web(-.3f, .1f, "top", 1);
+		webbing.add(web);
+		web = new Web(-.1f, .1f, "top", 2);
+		webbing.add(web);
+		web = new Web(.0995f, .1f, "top", 3);
+		webbing.add(web);
+		web = new Web(.299f, .1f, "top", 4);
+		webbing.add(web);
+		
+		web = new Web(-.5f, -.299f, "bottom", 5);
+		webbing.add(web);
+		web = new Web(-.3f, -.299f, "bottom", 6);
+		webbing.add(web);
+		web = new Web(-.1f, -.299f, "bottom", 7);
+		webbing.add(web);
+		web = new Web(.0995f, -.299f, "bottom", 8);
+		webbing.add(web);
+		web = new Web(.299f, -.299f, "bottom", 9);
+		webbing.add(web);
+	}
 	
 	// Unused methods --------------------------------------------------------------------------------------------------------
 	
