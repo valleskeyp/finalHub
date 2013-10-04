@@ -25,13 +25,18 @@ public class GameScreen implements Screen, InputProcessor {
 	private OrthographicCamera camera;
 	private SpriteBatch batch;
 	private Texture texture;
-	private Sprite sprite, leaf_back, spider;
-	private boolean move_spider;
+	private Sprite sprite, leaf_back, spider, shadow, gameOverText, fightCloud;
+	private boolean move_spider = false, isFighting = false;
 	public Array<HashMap<String, Float>> coord = new Array<HashMap<String, Float>>();
 	public Array<Fly> flies;
 	public Array<Web> webbing;
 	
-	float bug_timer = 0;
+	float spawn_timer = 0, fight_timer = 0, level_timer = 0;
+	
+	private Array<HashMap<String, Float>> flySlots;
+	private Array<Integer> flyCheck;
+	private int fliesEscaped, fightingFlySlot, spawnNumber;
+
 	
 	@Override
 	public void show() {
@@ -43,7 +48,306 @@ public class GameScreen implements Screen, InputProcessor {
 		Gdx.input.setInputProcessor(this);
 		Gdx.input.setCatchBackKey(true);
 		
-		//     ----  Don't forget to add spider to draw batch when done  ***AND ALSO DISPOSE***
+		createTextures();
+		
+		flyCheck = new Array<Integer>();
+		flies = new Array<Fly>();
+		webbing = new Array<Web>();
+		
+		makeWeb();
+		makeFlySlots();
+		
+		spawnNumber = (int) (Math.random() * 2 + 1);
+	}
+
+	
+	@Override
+	public void render(float delta) {
+		Gdx.gl.glClearColor(0, 0, 0, 1);
+		Gdx.gl.glClear(GL10.GL_COLOR_BUFFER_BIT);
+		float dt = Gdx.graphics.getDeltaTime();
+		
+		level_timer += dt;
+		if (level_timer >= 35) {
+			// TODO [TEST TO SEE IF THIS IS NECESSARY OR NOT]-spawnNumber += 1;
+			level_timer = 0;
+		}
+		batch.setProjectionMatrix(camera.combined);
+		batch.begin();
+		if (fliesEscaped < 5) { 															  //----// NORMAL GAMEPLAY
+			spawn_timer += dt;
+			
+			if (spawn_timer >= 5) {
+				spawn_timer = 0;
+				spawnFly();
+			}
+			
+			if (flies.size < 2) {
+				for (int i = 0; i < spawnNumber; i++) {
+					spawnFly();
+				}
+			}
+			leaf_back.draw(batch);
+			sprite.draw(batch);
+			for (Web web : webbing) {// draw web squares
+				web.draw(batch, dt);
+			}
+			if (!isFighting) {
+				spider.draw(batch);
+			} else {
+				fightCloud.draw(batch);
+				fight_timer += dt;
+				if (fight_timer > 1) {
+					isFighting = false;
+					fight_timer = 0;
+					flyCheck.removeValue(fightingFlySlot, true);
+				}
+			}
+			if (flies.size > 0) {
+				for (Fly fly : flies) {// draw flies
+					fly.draw(batch, dt);
+				}
+				for (Fly fly : flies) {
+					Sprite sp = fly.spriteReturn();
+					if (!isFighting && !fly.escaped && Intersector.overlaps(spider.getBoundingRectangle(),	sp.getBoundingRectangle())) {
+						for (Web web : webbing) {
+							if (web.slotNumber == fly.slotNumber) {
+								for (int flySlot : flyCheck) {
+									if (flySlot == fly.slotNumber) {
+										isFighting = true;
+										move_spider = false;
+										fightCloud.setPosition(fly.xCoord - .025f, fly.yCoord);
+										fightingFlySlot = flySlot;
+									}
+								}
+								web.hasFly = false;
+							}
+						}
+						flies.removeValue(fly, true);
+					} else if (fly.escaped) {
+						fliesEscaped += 1;
+						for (Web web : webbing) {
+							if (web.slotNumber == fly.slotNumber) {
+								webbing.removeValue(web, true);
+							}
+						}
+						flies.removeValue(fly, true);
+					}
+				}
+			}
+		} else {																	 			//----// GAME OVER
+			move_spider = false;
+			leaf_back.draw(batch);
+			sprite.draw(batch);
+			for (Web web : webbing) {// draw web squares
+				web.draw(batch, dt);
+			}
+			spider.draw(batch);
+			shadow.draw(batch);
+			gameOverText.draw(batch);
+		}
+		batch.end();
+	}
+
+	@Override
+	public void pause() {
+		// TODO pause
+	}
+	
+
+	@Override
+	public void dispose() {
+		batch.dispose();
+		texture.dispose();
+		for (Fly fly : flies) {
+			fly.texture.dispose();
+		}
+		for (Web web : webbing) {
+			web.texture.dispose();
+		}
+		
+	}
+
+	@Override
+	public boolean touchDown(int screenX, int screenY, int pointer, int button) {
+		Vector2 touchPos = new Vector2();
+        touchPos.set(Gdx.input.getX(), Gdx.input.getY());
+
+        Ray cameraRay = camera.getPickRay(touchPos.x, touchPos.y);
+        if (!isFighting && fliesEscaped < 3 && spider.getBoundingRectangle().contains(cameraRay.origin.x, cameraRay.origin.y)) {
+        	move_spider = true;
+		}
+		return false;
+	}
+
+	@Override
+	public boolean touchUp(int screenX, int screenY, int pointer, int button) {
+		Vector2 touchPos = new Vector2();
+        touchPos.set(Gdx.input.getX(), Gdx.input.getY());
+        
+        Ray cameraRay = camera.getPickRay(touchPos.x, touchPos.y);
+		if (fliesEscaped > 3 && gameOverText.getBoundingRectangle().contains(cameraRay.origin.x, cameraRay.origin.y)) {
+			flies.clear();
+			webbing.clear();
+			flyCheck.clear();
+			
+			makeWeb();
+			makeFlySlots();
+			fliesEscaped = 0;
+			
+			spider.setPosition(-spider.getWidth()/2, -spider.getHeight()/2);
+		}
+		move_spider = false;
+		return false;
+	}
+	
+	@Override
+	public boolean keyDown(int keycode) {
+		if(keycode == Keys.BACK) {
+			((Game) Gdx.app.getApplicationListener()).setScreen(new MenuScreen());
+		}
+		return false;
+	}
+	
+	@Override
+	public boolean touchDragged(int screenX, int screenY, int pointer) {
+		if (move_spider) {
+			Vector2 touchPos = new Vector2();
+			touchPos.set(Gdx.input.getX(), Gdx.input.getY());
+			Ray cameraRay = camera.getPickRay(touchPos.x, touchPos.y);
+			
+			spider.setX(cameraRay.origin.x - (spider.getWidth()/2));
+			spider.setY(cameraRay.origin.y);
+		}
+		return false;
+	}
+	
+	private void spawnFly() {
+		int flySize = (int) (Math.random() * 4) + 1;
+		// TODO also logic to make sure that not too many large flies on screen at once?
+		
+		int slotChosen = 0;
+		if (flyCheck.size > 0 && flies.size < 10) {
+			boolean notFound = true;
+			while (notFound) {
+				slotChosen = (int) (Math.random() * 10);
+				notFound = false;
+				for (int flySlot : flyCheck) {
+					if (flySlot == slotChosen) {
+						notFound = true;
+					}
+				}
+			}
+			for (Web web_ : webbing) {
+				if (web_.slotNumber == slotChosen) {
+					Fly fly = new Fly(flySlots.get(slotChosen).get("x"), flySlots.get(slotChosen).get("y"), flySize, slotChosen);
+					web_.hasFly = true;
+					flyCheck.add(slotChosen);
+					flies.add(fly);
+				}
+			}
+		} else if(flyCheck.size == 0 && flies.size < 10) {
+			slotChosen = (int) (Math.random() * 10);
+			for (Web web_ : webbing) {
+				if (web_.slotNumber == slotChosen) {
+					Fly fly = new Fly(flySlots.get(slotChosen).get("x"), flySlots.get(slotChosen).get("y"), 2, slotChosen);
+					web_.hasFly = true;
+					flyCheck.add(slotChosen);
+					flies.add(fly);
+				}
+			}
+		}
+	}
+	
+	private void makeWeb() {		
+		Web web = new Web(-.5f, .1f, "top", 0);
+		webbing.add(web);
+		web = new Web(-.3f, .1f, "top", 1);
+		webbing.add(web);
+		web = new Web(-.1f, .1f, "top", 2);
+		webbing.add(web);
+		web = new Web(.0995f, .1f, "top", 3);
+		webbing.add(web);
+		web = new Web(.299f, .1f, "top", 4);
+		webbing.add(web);
+		
+		web = new Web(-.5f, -.299f, "bottom", 5);
+		webbing.add(web);
+		web = new Web(-.3f, -.299f, "bottom", 6);
+		webbing.add(web);
+		web = new Web(-.1f, -.299f, "bottom", 7);
+		webbing.add(web);
+		web = new Web(.0995f, -.299f, "bottom", 8);
+		webbing.add(web);
+		web = new Web(.299f, -.299f, "bottom", 9);
+		webbing.add(web);
+	}
+	
+	private void makeFlySlots() {
+		flySlots = new Array<HashMap<String, Float>>();
+		
+		HashMap<String, Float> hm = new HashMap<String, Float>(); // top
+		
+		hm.put("x", -.455f);
+		hm.put("y", .143f);
+		flySlots.add(hm);
+		
+		hm = new HashMap<String, Float>();
+		
+		hm.put("x", -.255f);
+		hm.put("y", .143f);
+		flySlots.add(hm);
+		
+		hm = new HashMap<String, Float>();
+		
+		hm.put("x", -.055f);
+		hm.put("y", .143f);
+		flySlots.add(hm);
+		
+		hm = new HashMap<String, Float>();
+
+		hm.put("x", .145f);
+		hm.put("y", .143f);
+		flySlots.add(hm);
+
+		hm = new HashMap<String, Float>();
+
+		hm.put("x", .345f);
+		hm.put("y", .143f);
+		flySlots.add(hm);
+		
+		hm = new HashMap<String, Float>(); // bottom
+		
+		hm.put("x", -.455f);
+		hm.put("y", -.243f);
+		flySlots.add(hm);
+		
+		hm = new HashMap<String, Float>();
+		
+		hm.put("x", -.255f);
+		hm.put("y", -.243f);
+		flySlots.add(hm);
+		
+		hm = new HashMap<String, Float>();
+		
+		hm.put("x", -.055f);
+		hm.put("y", -.243f);
+		flySlots.add(hm);
+		
+		hm = new HashMap<String, Float>();
+
+		hm.put("x", .145f);
+		hm.put("y", -.243f);
+		flySlots.add(hm);
+
+		hm = new HashMap<String, Float>();
+
+		hm.put("x", .345f);
+		hm.put("y", -.243f);
+		flySlots.add(hm);
+	}
+	
+	private void createTextures() {
 		texture = new Texture(Gdx.files.internal("data/middle_web.png"));
 		texture.setFilter(TextureFilter.Linear, TextureFilter.Linear);
 		
@@ -74,140 +378,35 @@ public class GameScreen implements Screen, InputProcessor {
 		spider.setOrigin(spider.getWidth()/2, spider.getHeight()/2);
 		spider.setPosition(-spider.getWidth()/2, -spider.getHeight()/2);
 		
-		flies = new Array<Fly>();
-		makeWeb();
-		spawnFly();
-	}
+		texture = new Texture(Gdx.files.internal("data/shadow.png"));
+		texture.setFilter(TextureFilter.Linear, TextureFilter.Linear);
+		
+		region = new TextureRegion(texture, 0, 0, 800, 480);
+		
+		shadow = new Sprite(region);
+		shadow.setSize(1f, 1f * shadow.getHeight() / shadow.getWidth());
+		shadow.setOrigin(shadow.getWidth()/2, shadow.getHeight()/2);
+		shadow.setPosition(-shadow.getWidth()/2, -shadow.getHeight()/2);
+		
+		texture = new Texture(Gdx.files.internal("data/gameOver.png"));
+		texture.setFilter(TextureFilter.Linear, TextureFilter.Linear);
 
-	
-	@Override
-	public void render(float delta) {
-		Gdx.gl.glClearColor(0, 0, 0, 1);
-		Gdx.gl.glClear(GL10.GL_COLOR_BUFFER_BIT);
-		float dt = Gdx.graphics.getDeltaTime();
-		
-		batch.setProjectionMatrix(camera.combined);
-		batch.begin();
-		leaf_back.draw(batch);
-		sprite.draw(batch);
-		for (Web web : webbing) {// draw web squares
-			web.draw(batch, dt);
-		}
-		spider.draw(batch);
-		if (flies.size > 0) {
-			for (Fly fly : flies) {// draw flies
-				fly.draw(batch, dt);
-			}
-			for (Fly fly : flies) {
-				Sprite sp = fly.spriteReturn();
-				if (Intersector.overlaps(spider.getBoundingRectangle(),
-						sp.getBoundingRectangle())) {
-					flies.removeValue(fly, true);
-				}
-			}
-		}
-		batch.end();
-	}
+		region = new TextureRegion(texture, 0, 0, 256, 128);
 
-	@Override
-	public void pause() {
-		// TODO pause
-	}
-	
-
-	@Override
-	public void dispose() {
-		batch.dispose();
-		texture.dispose();
-		for (Fly fly : flies) {
-			fly.texture.dispose();
-		}
-		for (Web web : webbing) {
-			web.texture.dispose();
-		}
+		gameOverText = new Sprite(region);
+		gameOverText.setSize(.256f, .128f);
+		gameOverText.setOrigin(gameOverText.getWidth()/2, gameOverText.getHeight()/2);
+		gameOverText.setPosition(-.128f, -.064f);
 		
-	}
-
-	@Override
-	public boolean touchDown(int screenX, int screenY, int pointer, int button) {
-		Vector2 touchPos = new Vector2();
-        touchPos.set(Gdx.input.getX(), Gdx.input.getY());
-
-        Ray cameraRay = camera.getPickRay(touchPos.x, touchPos.y);
-        if (spider.getBoundingRectangle().contains(cameraRay.origin.x, cameraRay.origin.y)) {
-        	move_spider = true;
-		}
-		return false;
-	}
-
-	@Override
-	public boolean touchUp(int screenX, int screenY, int pointer, int button) {
+		texture = new Texture(Gdx.files.internal("data/fightCloud.png"));
+		texture.setFilter(TextureFilter.Linear, TextureFilter.Linear);
 		
+		region = new TextureRegion(texture, 0, 0, 165, 140);
 		
-		move_spider = false;
-		return false;
-	}
-	
-	@Override
-	public boolean keyDown(int keycode) {
-		if(keycode == Keys.BACK) {
-			((Game) Gdx.app.getApplicationListener()).setScreen(new MenuScreen());
-		}
-		return false;
-	}
-	
-	@Override
-	public boolean touchDragged(int screenX, int screenY, int pointer) {
-		if (move_spider) {
-			Vector2 touchPos = new Vector2();
-			touchPos.set(Gdx.input.getX(), Gdx.input.getY());
-			Ray cameraRay = camera.getPickRay(touchPos.x, touchPos.y);
-			
-			spider.setX(cameraRay.origin.x - (spider.getWidth()/2));
-			spider.setY(cameraRay.origin.y);
-		}
-		return false;
-	}
-	
-	private void spawnFly() {
+		fightCloud = new Sprite(region);
+		fightCloud.setSize(.175f, .150f);
+		fightCloud.setOrigin(fightCloud.getWidth()/2, fightCloud.getHeight()/2);
 		
-		int rand = (int) (Math.random() * 3) + 1;
-		
-		
-		Fly fly = new Fly(-.455f, .143f, 2, 0);
-		flies.add(fly);
-		
-		fly = new Fly(-.455f, -.243f, 2, 5);
-		flies.add(fly);
-		
-		fly = new Fly(-.255f, -.243f, 2, 6);
-		flies.add(fly);
-	}
-	
-	private void makeWeb() {
-		webbing = new Array<Web>();
-		
-		Web web = new Web(-.5f, .1f, "top", 0);
-		webbing.add(web);
-		web = new Web(-.3f, .1f, "top", 1);
-		webbing.add(web);
-		web = new Web(-.1f, .1f, "top", 2);
-		webbing.add(web);
-		web = new Web(.0995f, .1f, "top", 3);
-		webbing.add(web);
-		web = new Web(.299f, .1f, "top", 4);
-		webbing.add(web);
-		
-		web = new Web(-.5f, -.299f, "bottom", 5);
-		webbing.add(web);
-		web = new Web(-.3f, -.299f, "bottom", 6);
-		webbing.add(web);
-		web = new Web(-.1f, -.299f, "bottom", 7);
-		webbing.add(web);
-		web = new Web(.0995f, -.299f, "bottom", 8);
-		webbing.add(web);
-		web = new Web(.299f, -.299f, "bottom", 9);
-		webbing.add(web);
 	}
 	
 	// Unused methods --------------------------------------------------------------------------------------------------------
